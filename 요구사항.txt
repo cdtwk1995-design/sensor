@@ -1,0 +1,19 @@
+이제 앱을 만듭니다.
+supabase의 sensor_logs 테이블의 값을 모니터링 하는 앱을 PWA형태로 개발하려고 합니다.
+바닐라 HTML CSS를 사용하고 vite는 사용하지 않습니다. 간단한 앱이니까
+github로 연동을 먼저 하고 나서 개발해줘.
+내가 사용할 github 저장소는 https://github.com/cdtwk1995-design/sensor.git 야
+배포는 vercel 통해서 해줘.
+
+이 시스템은 누구나 들어와서 확인할 수 있도록 해줘.
+
+app_front.png 파일을 참고해서 화면을 설계합니다.
+검은색 영역에는 supabase의 sensor_logs 테이블 값을 띄웁니다.
+
+주황색 영역에는 supabase의 risk_level 값이 1인 테이블 값을 띄웁니다.
+
+빨간색 영역에는 supabase의 risk_level 값이 2인 테이블 값을 띄웁니다.
+
+risk_level 값이 2인 값이 화면에 표시될 때 삐소리로 알람을 한번 울립니다.
+
+

@@ -1,0 +1,6 @@
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqdmduamRvc3Vzd3F0Z2Z5bHh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzOTY0ODgsImV4cCI6MjA5ODk3MjQ4OH0.UCFVG5ag0oVnE8vgDKcvfhj-SDo1mbwPty5SjBJ1uvY
+
+
+datakey
+https://xjvgnjdosuswqtgfylxu.supabase.co
+/rest/v1/
