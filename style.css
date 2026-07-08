@@ -1,1 +1,384 @@
-< !DOCTYPE html><html lang="ko"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="description" content="Supabase 기반 실시간 센서 모니터링 대시보드 PWA" /><title>실시간 센서 모니터링</title><link rel="manifest" href="manifest.json" /><link rel="icon" href="icons/icon-192.png" /><meta name="theme-color" content="#0f1117" /><link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" /><link rel="stylesheet" href="style.css" /></head><body>< !-- Header --><header class="header" id="app-header"><div class="header-inner"><div class="header-title"><span class="header-icon">📡</span><h1>실시간 센서 모니터링</h1></div><div class="header-status"><span class="status-dot" id="status-dot"></span><span class="status-text" id="status-text">연결 중...</span><span class="header-time" id="header-time"></span></div></div></header>< !-- Stats Bar --><section class="stats-bar" id="stats-bar" aria-label="통계"><div class="stat-item"><span class="stat-label">전체</span><span class="stat-value" id="stat-total">0</span></div><div class="stat-item warning-stat"><span class="stat-label">⚠️ 경고</span><span class="stat-value" id="stat-warning">0</span></div><div class="stat-item risk-stat"><span class="stat-label">🚨 위험</span><span class="stat-value" id="stat-risk">0</span></div></section>< !-- Main Grid --><main class="dashboard" id="dashboard">< !-- All Logs --><section class="panel panel-all" id="panel-all" aria-label="전체 로그"><div class="panel-header"><div class="panel-title-row"><span class="panel-icon">📋</span><h2 class="panel-title">전체 로그</h2></div><span class="panel-badge badge-all" id="badge-all">0</span></div><div class="card-list" id="list-all"></div></section>< !-- Warning --><section class="panel panel-warning" id="panel-warning" aria-label="경고"><div class="panel-header"><div class="panel-title-row"><span class="panel-icon">⚠️</span><h2 class="panel-title">경고 (Level 1)</h2></div><span class="panel-badge badge-warning" id="badge-warning">0</span></div><div class="card-list" id="list-warning"></div></section>< !-- Risk --><section class="panel panel-risk" id="panel-risk" aria-label="위험"><div class="panel-header"><div class="panel-title-row"><span class="panel-icon">🚨</span><h2 class="panel-title">위험 (Level 2)</h2></div><span class="panel-badge badge-risk" id="badge-risk">0</span></div><div class="card-list" id="list-risk"></div></section></main>< !-- Supabase Realtime SDK --><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="app.js"></script></body></html>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root {
+  --font-main: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --bg-page:    #0f1117;
+  --bg-panel:   #1a1d27;
+  --bg-card:    #22263a;
+  --bg-card-hover: #2a2f48;
+
+  --col-all-accent:     #4e9af1;
+  --col-warning-accent: #f59e0b;
+  --col-risk-accent:    #ef4444;
+
+  --col-warning-bg:  #1f1200;
+  --col-risk-bg:     #1a0000;
+
+  --text-primary:   #f0f2ff;
+  --text-secondary: #8b90a7;
+  --text-mono:      #a8b3cf;
+
+  --radius-panel: 16px;
+  --radius-card:  12px;
+  --shadow-card:  0 4px 24px rgba(0,0,0,0.4);
+  --transition:   all 0.25s ease;
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-main);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+.header {
+  background: linear-gradient(135deg, #13151f 0%, #1a1d2e 100%);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(12px);
+}
+
+.header-inner {
+  max-width: 1600px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  gap: 16px;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-icon { font-size: 1.5rem; }
+
+.header-title h1 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #6b7280;
+  transition: background 0.4s;
+  flex-shrink: 0;
+}
+
+.status-dot.connected {
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e88;
+  animation: pulse-green 2s infinite;
+}
+
+.status-dot.error {
+  background: var(--col-risk-accent);
+  animation: none;
+}
+
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 8px #22c55e88; }
+  50%       { box-shadow: 0 0 16px #22c55e; }
+}
+
+.status-text {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.header-time {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-left: 4px;
+}
+
+/* ============================================================
+   STATS BAR
+   ============================================================ */
+.stats-bar {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  padding: 12px 24px;
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-panel);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 40px;
+  padding: 6px 18px;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--col-all-accent);
+}
+
+.warning-stat .stat-value { color: var(--col-warning-accent); }
+.risk-stat    .stat-value { color: var(--col-risk-accent); }
+
+/* ============================================================
+   DASHBOARD GRID
+   ============================================================ */
+.dashboard {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  padding: 20px 24px;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ============================================================
+   PANELS
+   ============================================================ */
+.panel {
+  background: var(--bg-panel);
+  border-radius: var(--radius-panel);
+  border: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  flex-direction: column;
+  min-height: 500px;
+  overflow: hidden;
+  transition: var(--transition);
+}
+
+.panel-all     { border-top: 3px solid var(--col-all-accent); }
+.panel-warning { border-top: 3px solid var(--col-warning-accent); background: var(--col-warning-bg); }
+.panel-risk    { border-top: 3px solid var(--col-risk-accent);    background: var(--col-risk-bg); }
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  position: sticky;
+  top: 0;
+  background: inherit;
+  z-index: 1;
+}
+
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-icon { font-size: 1.1rem; }
+
+.panel-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.panel-badge {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  min-width: 32px;
+  text-align: center;
+}
+
+.badge-all     { background: rgba(78,154,241,0.2); color: var(--col-all-accent); border: 1px solid rgba(78,154,241,0.4); }
+.badge-warning { background: rgba(245,158,11,0.2); color: var(--col-warning-accent); border: 1px solid rgba(245,158,11,0.4); }
+.badge-risk    { background: rgba(239,68,68,0.2);  color: var(--col-risk-accent); border: 1px solid rgba(239,68,68,0.4); }
+
+/* ============================================================
+   CARD LIST & CARDS
+   ============================================================ */
+.card-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card-list::-webkit-scrollbar { width: 4px; }
+.card-list::-webkit-scrollbar-track { background: transparent; }
+.card-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+/* Empty state */
+.card-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 16px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.card-empty-icon { font-size: 2rem; opacity: 0.4; }
+
+/* Data card */
+.data-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-card);
+  transition: var(--transition);
+  animation: cardIn 0.35s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+.data-card:hover {
+  background: var(--bg-card-hover);
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,0.12);
+}
+
+/* Warning card */
+.data-card.card-warning {
+  background: #231900;
+  border-color: rgba(245,158,11,0.25);
+}
+
+/* Risk card */
+.data-card.card-risk {
+  background: #1f0000;
+  border-color: rgba(239,68,68,0.4);
+}
+
+/* New risk card gets blinking border */
+.data-card.card-risk.is-new {
+  animation: cardIn 0.35s cubic-bezier(0.16,1,0.3,1) both, riskBlink 1s ease 0.35s 5 alternate;
+}
+
+@keyframes riskBlink {
+  from { border-color: rgba(239,68,68,0.3); box-shadow: none; }
+  to   { border-color: #ef4444; box-shadow: 0 0 18px rgba(239,68,68,0.5); }
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Card timestamp */
+.card-ts {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Card body rows */
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+}
+
+.card-row-label {
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-row-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.card-row-value.danger { color: #ef4444; font-size: 0.88rem; }
+
+/* Card footer badge */
+.card-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.risk-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.badge-normal  { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+.badge-warn    { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+.badge-danger  { background: rgba(239,68,68,0.2);  color: #ef4444; border: 1px solid rgba(239,68,68,0.5); font-weight: 900; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 1024px) {
+  .dashboard { grid-template-columns: repeat(2, 1fr); }
+  .panel-all { grid-column: 1 / -1; }
+}
+
+@media (max-width: 640px) {
+  .dashboard { grid-template-columns: 1fr; padding: 12px; gap: 14px; }
+  .stats-bar { flex-wrap: wrap; }
+  .header-inner h1 { font-size: 1rem; }
+}
